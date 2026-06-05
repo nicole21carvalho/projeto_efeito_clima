@@ -58,14 +58,21 @@ def corrigir_encoding_texto(valor):
             except Exception:
                 pass
 
-    # Correções manuais para casos que ainda ficaram quebrados
+        # Correções manuais para casos que ainda ficaram quebrados
     correcoes = {
         "CÃ©u Claro": "Céu Claro",
+        "Cï¿½u Claro": "Céu Claro",
         "ColisÃ£o": "Colisão",
+        "Colisï¿½o": "Colisão",
         "NÃ£o informado": "Não informado",
+        "Nï¿½o informado": "Não informado",
         "NÃ£o Informado": "Não informado",
         "SaÃ­da de leito": "Saída de leito",
+        "Saï¿½da de leito carroï¿½ï¿½vel": "Saída de leito carroçável",
+        "terï¿½a-feira": "terça-feira",
+        "sï¿½bado": "sábado",
     }
+
     for errado, correto in correcoes.items():
         texto = texto.replace(errado, correto)
 
@@ -78,36 +85,24 @@ def corrigir_encoding_texto(valor):
 
 @st.cache_data
 def carregar_dados():
-    """Carrega o CSV testando diferentes encodings para encontrar o melhor."""
     caminho = Path(__file__).parent / "acidentes_prf.csv"
 
     if not caminho.exists():
         st.error("Arquivo 'acidentes_prf.csv' não encontrado na pasta do projeto.")
         st.stop()
 
-    # Testa vários encodings e escolhe o com menos erros
-    encodings = ["utf-8-sig", "utf-8", "cp1252", "latin1"]
-    melhor_df = None
-    menor_erro = float("inf")
+    try:
+        df = pd.read_csv(
+            caminho,
+            sep=";",
+            encoding="latin1",
+            low_memory=False
+        )
+        return df
 
-    for enc in encodings:
-        try:
-            df = pd.read_csv(caminho, sep=";", encoding=enc, low_memory=False)
-            # Conta caracteres de erro na amostra
-            amostra = df.select_dtypes(include=["object"]).head(300).astype(str).to_string()
-            erros = amostra.count("�") * 3 + amostra.count("Ã") + amostra.count("Â")
-
-            if erros < menor_erro:
-                menor_erro = erros
-                melhor_df = df
-        except Exception:
-            continue
-
-    if melhor_df is None:
-        st.error("Não foi possível ler o arquivo CSV.")
+    except Exception as erro:
+        st.error(f"Erro ao ler o CSV: {erro}")
         st.stop()
-
-    return melhor_df
 
 
 df = carregar_dados()
