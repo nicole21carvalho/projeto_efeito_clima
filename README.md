@@ -1,4 +1,4 @@
-# 🌧️ O Efeito Clima nos Acidentes Rodoviários
+#  O Efeito Clima nos Acidentes Rodoviários
 
 <p align="center">
   <b>Análise de Dados e Solução de Problemas com Python</b><br>
