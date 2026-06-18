@@ -358,11 +358,6 @@ clima_selecionado = st.sidebar.multiselect(
     "Condição meteorológica:", options=climas, default=climas
 )
 
-anos_disponiveis = sorted(df["ano"].dropna().unique())
-anos_selecionados = st.sidebar.multiselect(
-    "Ano:", options=anos_disponiveis, default=anos_disponiveis
-)
-
 periodos_disponiveis = ["Madrugada", "Manhã", "Tarde", "Noite"]
 periodos_selecionados = st.sidebar.multiselect(
     "Período do dia:", options=periodos_disponiveis, default=periodos_disponiveis
@@ -372,7 +367,6 @@ periodos_selecionados = st.sidebar.multiselect(
 df_filtrado = df[
     (df["uf"].isin(uf_selecionada))
     & (df["condicao_metereologica"].isin(clima_selecionado))
-    & (df["ano"].isin(anos_selecionados))
     & (df["periodo_dia"].isin(periodos_selecionados) | df["periodo_dia"].isna())
 ]
 
