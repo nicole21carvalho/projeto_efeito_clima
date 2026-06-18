@@ -14,7 +14,7 @@
 
 ---
 
-## 📌 Sobre o Projeto
+## Sobre o Projeto
 
 > **Pergunta central:** Como as condições meteorológicas impactam a gravidade e o tipo dos acidentes registrados em rodovias federais brasileiras?
 
@@ -22,7 +22,7 @@ Este projeto analisa **73.156 registros de acidentes** (2024) da Polícia Rodovi
 
 ---
 
-## 🛠️ Tecnologias
+## Tecnologias
 
 | Tecnologia | Uso no projeto |
 |:---:|---|
@@ -34,7 +34,7 @@ Este projeto analisa **73.156 registros de acidentes** (2024) da Polícia Rodovi
 
 ---
 
-## 🚀 Como Executar
+## Como Executar
 
 ```bash
 # 1. Clone o repositório
@@ -57,7 +57,7 @@ python -m streamlit run app.py
 
 ---
 
-## 📊 O que a Aplicação Mostra
+## O que a Aplicação Mostra
 
 A interface possui **4 abas temáticas**, **4 filtros interativos** e **9 gráficos**:
 
@@ -72,7 +72,7 @@ A interface possui **4 abas temáticas**, **4 filtros interativos** e **9 gráfi
 
 ---
 
-## 🔧 Metodologia de Tratamento
+## Metodologia de Tratamento
 
 O pipeline de dados segue 5 etapas:
 
@@ -100,7 +100,7 @@ CSV (dados brutos) → Limpeza → Engenharia de Features → Visualização →
 
 ---
 
-## 📝 Conclusão
+## Conclusão
 
 - A maioria dos acidentes ocorre em **céu claro** (condição mais frequente)
 - Porém, o **clima adverso apresenta gravidade proporcionalmente maior**
@@ -109,7 +109,7 @@ CSV (dados brutos) → Limpeza → Engenharia de Features → Visualização →
 
 ---
 
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 projeto_efeito_clima/
@@ -122,7 +122,7 @@ projeto_efeito_clima/
 
 ---
 
-## ⚠️ Possíveis Erros
+## Possíveis Erros
 
 | Erro | Solução |
 |---|---|
