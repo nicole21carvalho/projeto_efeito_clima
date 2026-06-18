@@ -1,6 +1,6 @@
 # 🌧️ O Efeito Clima nos Acidentes Rodoviários
 
-Este projeto foi desenvolvido em Python com Streamlit, Pandas, Numpy, Matplotlib e Scikit-learn.
+Este projeto foi desenvolvido em Python com Streamlit, Pandas, Numpy e Matplotlib.
 O objetivo é analisar como as condições meteorológicas influenciam a frequência, o tipo e a gravidade dos acidentes em rodovias federais brasileiras.
 
 ---
@@ -139,22 +139,6 @@ Com o ambiente virtual ativado, instale as bibliotecas necessárias:
 pip install -r requirements.txt
 ```
 
-Caso o arquivo `requirements.txt` ainda não exista, crie um arquivo com esse nome e coloque dentro dele:
-
-```text
-streamlit
-pandas
-numpy
-matplotlib
-scikit-learn
-```
-
-Depois execute novamente:
-
-```bash
-pip install -r requirements.txt
-```
-
 ---
 
 ## 7. Executar o projeto
@@ -227,7 +211,49 @@ Ctrl + C
 
 ---
 
-## 10. Objetivo da análise
+## 10. Metodologia de Tratamento dos Dados
+
+O pipeline de limpeza e preparação segue as seguintes etapas:
+
+### 10.1 Carregamento
+O dataset é carregado com `pandas.read_csv()` usando encoding `latin1` e separador `;`,
+padrão dos dados abertos da PRF.
+
+### 10.2 Remoção de duplicatas
+Registros duplicados são identificados e removidos com `DataFrame.drop_duplicates()`.
+A quantidade de duplicatas removidas é exibida na interface.
+
+### 10.3 Padronização de colunas
+Os nomes das colunas são convertidos para snake_case minúsculo sem acentos,
+garantindo consistência independente da formatação original.
+
+### 10.4 Tratamento de valores nulos
+- **Colunas de texto** (UF, tipo de acidente, condição meteorológica): valores nulos
+  são preenchidos com "Não informado".
+- **Colunas numéricas** (mortos, feridos leves, feridos graves, veículos): valores nulos
+  ou não numéricos são convertidos para 0.
+- As estatísticas de nulos tratados são exibidas na interface.
+
+### 10.5 Correção de encoding
+O CSV da PRF contém textos corrompidos por conversões de encoding (latin1 ↔ UTF-8).
+A função `corrigir_encoding_texto()` aplica recodificação automática e correções manuais
+para os casos mais comuns.
+
+### 10.6 Engenharia de features
+Novas colunas criadas a partir dos dados brutos:
+
+| Feature | Descrição | Justificativa |
+|---------|-----------|---------------|
+| `clima_adverso` | "Adverso" ou "Normal" | Permite comparação direta entre climas favoráveis e desfavoráveis |
+| `total_feridos` | `feridos_leves + feridos_graves` | Simplifica análise de vítimas |
+| `indice_gravidade` | `mortos×3 + graves×2 + leves×1` | Índice ponderado que reflete a severidade real |
+| `periodo_dia` | Madrugada/Manhã/Tarde/Noite | Permite análise por faixa horária |
+| `regiao` | Norte/Nordeste/Centro-Oeste/Sudeste/Sul | Análise geográfica por região |
+| `dia_semana_num` | 0 (segunda) a 6 (domingo) | Permite análise de padrões semanais |
+
+---
+
+## 11. Objetivo da análise
 
 O projeto busca responder à seguinte pergunta:
 
@@ -235,31 +261,29 @@ O projeto busca responder à seguinte pergunta:
 
 A aplicação permite analisar:
 
-* Total de acidentes
-* Total de mortos
-* Total de feridos
+* Total de acidentes, mortos e feridos
 * Percentual de acidentes em clima adverso
 * Gravidade média dos acidentes
 * Acidentes por condição meteorológica
 * Tipos de acidente em dias de chuva
-* Acidentes por horário
-* Estados com mais acidentes em clima adverso
-* Modelo preditivo opcional com Scikit-learn
+* Acidentes por horário e dia da semana
+* Comparativo de gravidade: clima adverso vs normal
+* Distribuição por região e estados
+* Gravidade média por região em clima adverso
 
 ---
 
-## 11. Tecnologias utilizadas
+## 12. Tecnologias utilizadas
 
 * Python
 * Streamlit
 * Pandas
 * Numpy
 * Matplotlib
-* Scikit-learn
 
 ---
 
-## 12. Comando principal para rodar
+## 13. Comando principal para rodar
 
 Resumo final:
 
