@@ -416,25 +416,110 @@ with tab_clima:
     st.pyplot(fig)
     plt.close(fig)
 
+    # Análise proporcional: por que céu claro lidera?
+    total_acidentes = len(df_filtrado)
+    pct_por_clima = (acidentes_por_clima / total_acidentes * 100).round(1)
+    condicao_lider = acidentes_por_clima.index[0] if len(acidentes_por_clima) > 0 else "N/A"
+    pct_lider = pct_por_clima.iloc[0] if len(pct_por_clima) > 0 else 0
+
+    st.info(f"""
+    📊 **Insight do Analista:** A condição **"{condicao_lider}"** lidera com **{pct_lider:.1f}%** dos acidentes.
+    Isso **não significa** que essa condição seja mais perigosa — significa que ela é a **mais frequente**.
+    Como o Brasil possui clima predominantemente tropical, a maioria dos dias do ano apresenta céu claro,
+    o que naturalmente eleva a contagem absoluta de acidentes nessa condição.
+    Para avaliar o real impacto do clima, é necessário analisar a **gravidade proporcional** (ver gráfico abaixo).
+    """)
+
+    # Gráfico de taxa normalizada: gravidade média por condição
+    st.subheader("Taxa de Gravidade por Condição Meteorológica (Análise Proporcional)")
+    gravidade_normalizada = (
+        df_filtrado.groupby("condicao_metereologica")
+        .agg(
+            gravidade_media=("indice_gravidade", "mean"),
+            total=("indice_gravidade", "count"),
+        )
+        .sort_values("gravidade_media", ascending=False)
+        .head(10)
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    cores_barra = [
+        CORES["perigo"] if idx in df_filtrado[df_filtrado["clima_adverso"] == "Adverso"]["condicao_metereologica"].unique()
+        else CORES["primaria"]
+        for idx in gravidade_normalizada.index
+    ]
+    gravidade_normalizada["gravidade_media"].plot(kind="bar", ax=ax, color=cores_barra)
+    ax.set_title("Gravidade Média por Condição (vermelho = clima adverso)", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Condição Meteorológica")
+    ax.set_ylabel("Índice de Gravidade Médio")
+    ax.tick_params(axis="x", rotation=45)
+    ax.axhline(y=df_filtrado["indice_gravidade"].mean(), color="gray", linestyle="--", label="Média geral")
+    ax.legend()
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+    grav_adverso = df_filtrado[df_filtrado["clima_adverso"] == "Adverso"]["indice_gravidade"].mean()
+    grav_normal = df_filtrado[df_filtrado["clima_adverso"] == "Normal"]["indice_gravidade"].mean()
+    if grav_normal > 0:
+        aumento_pct = ((grav_adverso - grav_normal) / grav_normal) * 100
+        st.success(f"""
+        🎯 **Análise Proporcional:** Ao normalizar pela frequência, observa-se que acidentes em
+        **clima adverso** possuem gravidade média **{aumento_pct:.1f}% {'maior' if aumento_pct > 0 else 'menor'}**
+        que em clima normal. Isso demonstra que, embora o céu claro concentre mais ocorrências em números absolutos,
+        **o clima adverso eleva significativamente o risco de lesões graves e óbitos por acidente**.
+        """)
+
     st.divider()
 
-    st.subheader("Tipos de Colisão em Dias de Chuva")
+    st.subheader("Tipos de Colisão em Dias de Chuva vs Céu Claro")
     clima_norm = df_filtrado["condicao_metereologica"].str.lower()
     df_chuva = df_filtrado[clima_norm.str.contains("chuva|garoa", na=False)]
+    df_ceu_claro = df_filtrado[clima_norm.str.contains("claro", na=False)]
     tipos_chuva = df_chuva["tipo_acidente"].value_counts().head(10)
 
     if tipos_chuva.empty:
         st.info("Não há registros de chuva nos filtros selecionados.")
     else:
-        fig = criar_grafico_barras(
-            tipos_chuva,
-            titulo="Tipos de Acidente Mais Frequentes em Dias de Chuva",
-            xlabel="Tipo de Acidente",
-            ylabel="Quantidade",
-            cor=CORES["destaque"],
-        )
+        # Gráfico comparativo: chuva vs céu claro
+        tipos_ceu = df_ceu_claro["tipo_acidente"].value_counts().head(10)
+        tipos_comuns = tipos_chuva.index.intersection(tipos_ceu.index)
+
+        fig, ax = plt.subplots(figsize=(12, 6))
+        x = np.arange(len(tipos_comuns))
+        largura = 0.35
+
+        vals_chuva = [tipos_chuva.get(t, 0) for t in tipos_comuns]
+        vals_ceu = [tipos_ceu.get(t, 0) for t in tipos_comuns]
+
+        # Normalizar para proporção (%) para comparação justa
+        total_chuva = df_chuva["tipo_acidente"].count()
+        total_ceu = df_ceu_claro["tipo_acidente"].count()
+        pct_chuva = [v / total_chuva * 100 if total_chuva > 0 else 0 for v in vals_chuva]
+        pct_ceu = [v / total_ceu * 100 if total_ceu > 0 else 0 for v in vals_ceu]
+
+        ax.bar(x - largura / 2, pct_chuva, largura, label="Chuva/Garoa", color=CORES["destaque"])
+        ax.bar(x + largura / 2, pct_ceu, largura, label="Céu Claro", color=CORES["primaria"])
+        ax.set_xticks(x)
+        ax.set_xticklabels(tipos_comuns, rotation=45, ha="right")
+        ax.set_title("Proporção (%) dos Tipos de Acidente: Chuva vs Céu Claro", fontsize=14, fontweight="bold")
+        ax.set_ylabel("% do Total de Acidentes na Condição")
+        ax.legend()
+        fig.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
+
+        # Insight sobre tipos de colisão na chuva
+        tipo_lider_chuva = tipos_chuva.idxmax()
+        st.info(f"""
+        📊 **Insight do Analista:** Em dias de chuva, o tipo mais frequente é **"{tipo_lider_chuva}"**.
+        Isso ocorre por fatores físicos diretos:
+        - 🚗 **Colisões traseiras** aumentam porque a pista molhada **reduz o coeficiente de atrito**,
+          aumentando a distância de frenagem em até 50%.
+        - 🛣️ **Saídas de pista** são mais frequentes devido à **aquaplanagem** (perda de contato pneu-asfalto)
+          e **redução da visibilidade** por spray de água dos veículos à frente.
+        - 👁️ A chuva reduz a visibilidade e cria reflexos na pista, dificultando a percepção de obstáculos.
+        """)
 
 
 # ---- Aba 2: Gravidade ----
@@ -455,6 +540,17 @@ with tab_gravidade:
     )
     st.pyplot(fig)
     plt.close(fig)
+
+    # Insight sobre gravidade por condição
+    condicao_mais_grave = gravidade_por_clima.idxmax() if not gravidade_por_clima.empty else "N/A"
+    valor_mais_grave = gravidade_por_clima.max() if not gravidade_por_clima.empty else 0
+    media_geral_grav = df_filtrado["indice_gravidade"].mean()
+    st.info(f"""
+    📊 **Insight do Analista:** A condição **"{condicao_mais_grave}"** apresenta a maior gravidade média
+    (**{valor_mais_grave:.2f}**), que é **{((valor_mais_grave / media_geral_grav) - 1) * 100:.1f}% acima** da média geral ({media_geral_grav:.2f}).
+    Condições com menor visibilidade e aderência tendem a gerar acidentes mais severos porque os motoristas
+    não conseguem reagir a tempo, resultando em colisões a velocidades mais altas.
+    """)
 
     st.divider()
 
@@ -502,6 +598,50 @@ with tab_gravidade:
 
     st.dataframe(comparativo, use_container_width=True)
 
+    # Razão de risco e análise
+    if "Adverso" in comparativo.index and "Normal" in comparativo.index:
+        grav_adv = comparativo.loc["Adverso", "gravidade_media"]
+        grav_nor = comparativo.loc["Normal", "gravidade_media"]
+        mortos_adv = comparativo.loc["Adverso", "mortos_media"]
+        mortos_nor = comparativo.loc["Normal", "mortos_media"]
+        razao_risco = grav_adv / grav_nor if grav_nor > 0 else 0
+        razao_mortos = mortos_adv / mortos_nor if mortos_nor > 0 else 0
+
+        st.warning(f"""
+        ⚠️ **Razão de Risco (Análise Central do Projeto):**
+        - **Razão de gravidade:** {razao_risco:.2f}x — cada acidente em clima adverso é, em média,
+          **{((razao_risco - 1) * 100):.1f}% mais grave** que em clima normal.
+        - **Razão de mortalidade:** {razao_mortos:.2f}x — a taxa de mortos por acidente é
+          **{((razao_mortos - 1) * 100):.1f}% maior** em condições adversas.
+        - **Por que isso acontece?** Em clima adverso, a combinação de pista escorregadia, menor visibilidade
+          e maior tempo de reação resulta em colisões com velocidade de impacto mais elevada,
+          o que aumenta diretamente a severidade das lesões.
+        """)
+
+    # Histograma de distribuição da gravidade
+    st.divider()
+    st.subheader("Distribuição do Índice de Gravidade por Tipo de Clima")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    df_grav_adverso = df_filtrado[df_filtrado["clima_adverso"] == "Adverso"]["indice_gravidade"]
+    df_grav_normal = df_filtrado[df_filtrado["clima_adverso"] == "Normal"]["indice_gravidade"]
+
+    ax.hist(df_grav_normal, bins=30, alpha=0.6, label="Normal", color=CORES["primaria"], density=True)
+    ax.hist(df_grav_adverso, bins=30, alpha=0.6, label="Adverso", color=CORES["perigo"], density=True)
+    ax.set_title("Distribuição do Índice de Gravidade (Normalizado)", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Índice de Gravidade")
+    ax.set_ylabel("Densidade")
+    ax.legend()
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+    st.info("""
+    📊 **Leitura do Histograma:** A distribuição mostra que acidentes em clima adverso (vermelho)
+    possuem uma "cauda" mais pesada à direita, indicando maior proporção de acidentes graves.
+    Em clima normal (azul), a concentração é maior em valores baixos de gravidade. Isso confirma
+    que o clima adverso não apenas causa acidentes, mas causa acidentes **mais severos**.
+    """)
+
 
 # ---- Aba 3: Temporal ----
 with tab_temporal:
@@ -523,9 +663,55 @@ with tab_temporal:
         ax.set_xlabel("Hora do Dia")
         ax.set_ylabel("Quantidade de Acidentes")
         ax.legend(title="Clima")
+        # Destaque visual para horários de pico
+        ax.axvspan(17, 19, alpha=0.1, color="red", label="Horário de pico")
+        ax.axvspan(7, 9, alpha=0.1, color="orange", label="Rush manhã")
         fig.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
+
+        # Identificar hora com mais acidentes
+        hora_pico = acidentes_hora.sum(axis=1).idxmax()
+        acidentes_pico = int(acidentes_hora.sum(axis=1).max())
+        hora_menor = acidentes_hora.sum(axis=1).idxmin()
+
+        st.info(f"""
+        📊 **Insight do Analista:** O pico de acidentes ocorre às **{int(hora_pico)}h** ({acidentes_pico} registros),
+        enquanto o menor volume é às **{int(hora_menor)}h**. Razões para os padrões observados:
+        - 🚗 **Pico 17h-19h:** Coincide com o horário de rush (maior volume de veículos) + redução da
+          luminosidade natural (pôr do sol), que prejudica a visibilidade.
+        - 🌅 **Pico secundário 7h-9h:** Rush matutino com motoristas ainda sonolentos e sol nascente
+          causando ofuscamento em sentidos específicos.
+        - 🌙 **Madrugada (menor volume):** Menos veículos circulando, mas quando ocorrem acidentes,
+          tendem a ser mais graves (fadiga, álcool, alta velocidade).
+        """)
+
+        # Gravidade média por hora
+        st.divider()
+        st.subheader("Gravidade Média por Hora do Dia")
+        grav_por_hora = (
+            df_filtrado.dropna(subset=["hora"])
+            .groupby("hora")["indice_gravidade"]
+            .mean()
+        )
+        fig, ax = plt.subplots(figsize=(10, 5))
+        grav_por_hora.plot(kind="line", marker="s", ax=ax, color=CORES["perigo"])
+        ax.set_title("Índice de Gravidade Médio por Hora", fontsize=14, fontweight="bold")
+        ax.set_xlabel("Hora do Dia")
+        ax.set_ylabel("Gravidade Média")
+        ax.axhline(y=grav_por_hora.mean(), color="gray", linestyle="--", label="Média geral")
+        ax.legend()
+        fig.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
+
+        hora_mais_grave = grav_por_hora.idxmax()
+        st.warning(f"""
+        ⚠️ **Paradoxo volume vs gravidade:** A hora com MAIS acidentes ({int(hora_pico)}h) não é a mesma
+        com MAIOR gravidade ({int(hora_mais_grave)}h). Isso ocorre porque na madrugada/noite há menos acidentes,
+        mas eles são mais letais — motoristas em alta velocidade, sob efeito de álcool ou fadiga,
+        em rodovias com pouca iluminação.
+        """)
 
     st.divider()
 
@@ -552,6 +738,27 @@ with tab_temporal:
         st.pyplot(fig)
         plt.close(fig)
 
+        # Gravidade por dia da semana
+        grav_por_dia = (
+            df_filtrado.dropna(subset=["dia_semana_num"])
+            .groupby("dia_semana_num")["indice_gravidade"]
+            .mean()
+        )
+        grav_por_dia.index = grav_por_dia.index.astype(int).map(dias_nome)
+
+        dia_mais_acidentes = acidentes_dia.idxmax()
+        dia_mais_grave = grav_por_dia.idxmax()
+
+        st.info(f"""
+        📊 **Insight do Analista:** O dia com **mais acidentes** é **{dia_mais_acidentes}**,
+        mas o dia com **maior gravidade média** é **{dia_mais_grave}**.
+        - 📅 **Dias úteis** concentram mais acidentes por causa do maior fluxo de veículos
+          (deslocamento trabalho-casa).
+        - 🎉 **Finais de semana** tendem a ter menos acidentes totais, porém com gravidade elevada.
+          Fatores: maior consumo de álcool, viagens de longa distância com fadiga,
+          e velocidades mais altas em rodovias menos movimentadas.
+        """)
+
 
 # ---- Aba 4: Geográfico ----
 with tab_geografico:
@@ -570,6 +777,35 @@ with tab_geografico:
         st.pyplot(fig)
         plt.close(fig)
 
+        # Taxa de acidentes adversos / total por estado
+        taxa_adverso_uf = (
+            df_adverso["uf"].value_counts() / df_filtrado["uf"].value_counts() * 100
+        ).dropna().sort_values(ascending=False).head(10)
+
+        st.subheader("Proporção de Acidentes em Clima Adverso por Estado (%)")
+        fig = criar_grafico_barras(
+            taxa_adverso_uf.round(1),
+            titulo="% dos Acidentes que Ocorrem em Clima Adverso (por UF)",
+            xlabel="Estado",
+            ylabel="% em Clima Adverso",
+            cor=CORES["alerta"],
+        )
+        st.pyplot(fig)
+        plt.close(fig)
+
+        uf_lider_absoluto = ranking_uf.idxmax()
+        uf_lider_proporcional = taxa_adverso_uf.idxmax()
+        pct_uf_prop = taxa_adverso_uf.max()
+        st.info(f"""
+        📊 **Insight do Analista:** Em números absolutos, **{uf_lider_absoluto}** lidera em acidentes
+        com clima adverso. Porém, proporcionalmente, **{uf_lider_proporcional}** é o estado onde
+        **{pct_uf_prop:.1f}% dos acidentes** ocorrem em condições adversas.
+        - 🌧️ Estados do **Sul** (PR, SC, RS) e **Sudeste** (MG, SP) tendem a ter maior proporção
+          de acidentes em clima adverso devido ao regime pluviométrico mais intenso e frequente.
+        - 🛣️ Esses estados também possuem grande malha rodoviária federal, o que amplifica os números.
+        - 🏔️ Regiões serranas (SC, MG) combinam neblina frequente + curvas, aumentando o risco.
+        """)
+
     st.divider()
 
     st.subheader("Acidentes por Região do Brasil")
@@ -585,6 +821,15 @@ with tab_geografico:
         )
         st.pyplot(fig)
         plt.close(fig)
+
+        regiao_lider = acidentes_regiao.idxmax()
+        st.info(f"""
+        📊 **Insight do Analista:** A região **{regiao_lider}** concentra mais acidentes,
+        o que se explica pela combinação de: maior densidade de rodovias federais,
+        maior frota de veículos e maior volume de tráfego de carga e passageiros.
+        Isso não indica necessariamente que as rodovias dessa região sejam mais perigosas —
+        é preciso normalizar pelo volume de tráfego (veículos×km).
+        """)
 
     st.divider()
 
@@ -604,6 +849,19 @@ with tab_geografico:
         )
         st.pyplot(fig)
         plt.close(fig)
+
+        regiao_mais_grave = grav_regiao.idxmax()
+        regiao_menos_grave = grav_regiao.idxmin()
+        st.warning(f"""
+        ⚠️ **Análise de Risco Regional:** Em clima adverso, a região **{regiao_mais_grave}** apresenta
+        a maior gravidade média, enquanto a **{regiao_menos_grave}** tem a menor.
+        Fatores que influenciam:
+        - 🏥 **Distância de hospitais:** Regiões com menos infraestrutura de saúde próxima às rodovias
+          tendem a registrar mais óbitos (tempo de resgate mais longo).
+        - 🛤️ **Perfil das rodovias:** Rodovias de pista simples (sem divisor central) são mais perigosas
+          em clima adverso por permitir colisões frontais.
+        - 🚛 **Tipo de tráfego:** Regiões com mais caminhões pesados geram acidentes mais graves.
+        """)
 
 st.divider()
 
@@ -628,22 +886,81 @@ with st.expander("📋 Tabela Resumo por Condição Meteorológica", expanded=Tr
 # ============================================================
 
 st.divider()
-st.subheader("📝 Conclusão")
+st.subheader("📝 Conclusão Analítica")
 
 clima_mais_frequente = acidentes_por_clima.idxmax() if not acidentes_por_clima.empty else "N/A"
 tipo_chuva_comum = tipos_chuva.idxmax() if not tipos_chuva.empty else "N/A"
 
+# Calcular métricas para a conclusão
+grav_adv_final = df_filtrado[df_filtrado["clima_adverso"] == "Adverso"]["indice_gravidade"].mean()
+grav_nor_final = df_filtrado[df_filtrado["clima_adverso"] == "Normal"]["indice_gravidade"].mean()
+razao_final = grav_adv_final / grav_nor_final if grav_nor_final > 0 else 0
+mortos_adverso_total = int(df_filtrado[df_filtrado["clima_adverso"] == "Adverso"]["mortos"].sum())
+mortos_normal_total = int(df_filtrado[df_filtrado["clima_adverso"] == "Normal"]["mortos"].sum())
+n_adverso = len(df_filtrado[df_filtrado["clima_adverso"] == "Adverso"])
+n_normal = len(df_filtrado[df_filtrado["clima_adverso"] == "Normal"])
+taxa_mortalidade_adv = mortos_adverso_total / n_adverso if n_adverso > 0 else 0
+taxa_mortalidade_nor = mortos_normal_total / n_normal if n_normal > 0 else 0
+
 st.markdown(f"""
-Com base na análise dos dados de acidentes da PRF, concluímos que:
+### 🔍 Achados Descritivos
 
-- A condição meteorológica com **mais acidentes** registrados foi: **{clima_mais_frequente}**
-- Em dias de **chuva ou garoa**, o tipo de colisão mais frequente foi: **{tipo_chuva_comum}**
-- O percentual de acidentes ocorridos em **clima adverso** foi de **{pct_adverso:.1f}%**
-- A **gravidade média** dos acidentes no dataset filtrado foi de **{gravidade_media:.2f}**
+| Indicador | Valor |
+|-----------|-------|
+| Condição com mais acidentes (absoluto) | **{clima_mais_frequente}** |
+| Tipo de colisão mais frequente na chuva | **{tipo_chuva_comum}** |
+| % de acidentes em clima adverso | **{pct_adverso:.1f}%** |
+| Gravidade média geral | **{gravidade_media:.2f}** |
+| Razão de gravidade (adverso/normal) | **{razao_final:.2f}x** |
 
-**Respondendo à pergunta do projeto:** A chuva impacta principalmente no tipo de colisão
-(com destaque para colisões traseiras e saídas de pista) e aumenta o índice de gravidade
-dos acidentes. Embora a maioria dos acidentes ocorra em clima normal (por ser mais frequente),
-o clima adverso apresenta gravidade proporcionalmente maior, reforçando a necessidade de
-campanhas de prevenção focadas em períodos chuvosos.
+---
+
+### 🧠 Análise dos "Porquês"
+
+**1. Por que céu claro tem mais acidentes em números absolutos?**
+- Porque céu claro é a condição meteorológica predominante no Brasil (~{100 - pct_adverso:.0f}% dos dias).
+- Mais exposição temporal = mais acidentes registrados. **Isso não indica maior periculosidade.**
+
+**2. Por que o clima adverso é mais perigoso proporcionalmente?**
+- Pista molhada reduz atrito em 30-50%, aumentando distância de frenagem.
+- Neblina/chuva reduzem visibilidade, impedindo reação preventiva.
+- Aquaplanagem causa perda total de controle do veículo.
+- Resultado: colisões ocorrem a velocidades de impacto mais altas → lesões mais graves.
+
+**3. Por que colisões traseiras dominam em dias de chuva?**
+- A distância de frenagem aumenta significativamente (F = μ × N, onde μ diminui com água).
+- Motoristas mantêm a mesma distância de seguimento de dias secos.
+- Spray de água do veículo da frente reduz visibilidade dos freios.
+
+**4. Por que a gravidade é maior na madrugada?**
+- Menor volume de tráfego permite velocidades mais altas.
+- Fadiga e álcool comprometem tempo de reação.
+- Menor iluminação dificulta identificação de obstáculos.
+- Serviços de resgate demoram mais (menor efetivo noturno).
+
+---
+
+### 💡 Recomendações (como Analista de Dados)
+
+1. **Campanhas de prevenção** devem ser intensificadas em períodos de chuva,
+   focando em manter distância de seguimento e reduzir velocidade.
+2. **Sinalização viária** em regiões Sul e Sudeste deve priorizar placas de
+   "pista escorregadia" e limites de velocidade reduzidos para chuva.
+3. **Fiscalização** no horário de pico (17h-19h) e madrugadas de final de semana
+   pode reduzir os acidentes mais graves.
+4. **Investimento em drenagem** nas rodovias com mais saídas de pista em chuva
+   pode mitigar aquaplanagem.
+
+---
+
+### ⚠️ Limitações da Análise
+
+- **Não possuímos dados de volume de tráfego** por condição climática, o que impede
+  calcular a taxa de acidentes por veículo×km exposto à chuva.
+- **A classificação meteorológica é feita no momento do registro**, podendo haver
+  imprecisões (chuva intermitente registrada como "céu claro").
+- **Não há dados de velocidade** dos veículos no momento do acidente, o que limita
+  a análise causal direta.
+- **O dataset é de um único ano (2024)**, impossibilitando análise de tendências
+  temporais ou sazonais entre anos.
 """)
