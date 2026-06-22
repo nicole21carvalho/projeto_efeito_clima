@@ -76,7 +76,7 @@ st.markdown("""
 **Problema:** Qual é o impacto real da chuva na gravidade e no tipo de colisão
 em rodovias federais brasileiras?
 
-Este projeto utiliza dados abertos da PRF (Polícia Rodoviária Federal) para
+Este projeto utiliza dados abertos da PRF (Polícia Rodoviária Federal) de 2024 para
 investigar como as condições meteorológicas influenciam os acidentes de trânsito.
 """)
 
